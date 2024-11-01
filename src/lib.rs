@@ -131,6 +131,8 @@ pub enum Body {
     BackwardSong,
     #[brw(magic(18u16))]
     SetVolume { volume: f64 },
+    #[brw(magic(19u16))]
+    SetLyricLineTTML { data: NullString },
 }
 
 pub fn parse_body(body: &[u8]) -> anyhow::Result<Body> {

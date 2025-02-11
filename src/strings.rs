@@ -56,7 +56,7 @@ impl<'de> Deserialize<'de> for NullString {
         D: Deserializer<'de>,
     {
         struct NSVisitor;
-        impl<'de> Visitor<'de> for NSVisitor {
+        impl Visitor<'_> for NSVisitor {
             type Value = NullString;
 
             fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
@@ -211,7 +211,7 @@ impl<'de> Deserialize<'de> for NullWideString {
         D: Deserializer<'de>,
     {
         struct NWSVisitor;
-        impl<'de> Visitor<'de> for NWSVisitor {
+        impl Visitor<'_> for NWSVisitor {
             type Value = NullWideString;
 
             fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {

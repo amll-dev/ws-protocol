@@ -17,7 +17,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[binrw]
 #[brw(little)]
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Artist {
     pub id: NullString,
@@ -26,19 +26,21 @@ pub struct Artist {
 
 #[binrw]
 #[brw(little)]
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LyricWord {
-    pub start_time: u32,
-    pub end_time: u32,
+    pub start_time: u64,
+    pub end_time: u64,
     pub word: NullString,
 }
 
 #[binrw]
 #[brw(little)]
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LyricLine {
+    pub start_time: u64,
+    pub end_time: u64,
     #[bw(try_calc = u32::try_from(words.len()))]
     size: u32,
     #[br(count = size)]
@@ -63,25 +65,32 @@ pub struct LyricLine {
 /// 信息主体
 #[binrw]
 #[brw(little)]
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase", tag = "type", content = "value")]
 pub enum Body {
+    // 心跳信息
     #[brw(magic(0u16))]
     Ping,
     #[brw(magic(1u16))]
     Pong,
+    // 可从发送方发送给接收方的指令，用于同步播放进度和内容
+    #[serde(rename_all = "camelCase")]
     #[brw(magic(2u16))]
-    SetMusicId {
-        id: NullString,
-        name: NullString,
+    SetMusicInfo {
+        music_id: NullString,
+        music_name: NullString,
+        album_id: NullString,
+        album_name: NullString,
+        #[bw(try_calc = u32::try_from(artists.len()))]
+        artists_size: u32,
+        #[br(count = artists_size)]
+        artists: Vec<Artist>,
         duration: u64,
     },
-    #[brw(magic(3u16))]
-    SetMusicAlbum { id: NullString, name: NullString },
     #[serde(rename_all = "camelCase")]
+    #[brw(magic(3u16))]
+    SetMusicAlbumCoverImageURI { img_url: NullString },
     #[brw(magic(4u16))]
-    SetMusicAlbumCoverImageURL { img_url: NullString },
-    #[brw(magic(5u16))]
     SetMusicAlbumCoverImageData {
         #[bw(try_calc = u32::try_from(data.len()))]
         size: u32,
@@ -89,24 +98,15 @@ pub enum Body {
         #[serde(with = "serde_bytes")]
         data: Vec<u8>,
     },
+    #[brw(magic(5u16))]
+    OnPlayProgress { progress: u64 },
     #[brw(magic(6u16))]
-    SetMusicArtists {
-        #[bw(try_calc = u32::try_from(artists.len()))]
-        size: u32,
-        #[br(count = size)]
-        artists: Vec<Artist>,
-    },
+    OnVolumeChanged { volume: f64 },
     #[brw(magic(7u16))]
-    OnLoadProgress { progress: f64 },
-    #[brw(magic(8u16))]
-    OnPlayProgress { progress: f64 },
-    #[brw(magic(9u16))]
     OnPaused,
-    #[brw(magic(10u16))]
+    #[brw(magic(8u16))]
     OnResumed,
-    #[brw(magic(11u16))]
-    SetPlayProgress { progress: f64 },
-    #[brw(magic(12u16))]
+    #[brw(magic(9u16))]
     OnAudioData {
         #[bw(try_calc = u32::try_from(data.len()))]
         size: u32,
@@ -114,25 +114,28 @@ pub enum Body {
         #[serde(with = "serde_bytes")]
         data: Vec<u8>,
     },
-    #[brw(magic(13u16))]
+    #[brw(magic(10u16))]
     SetLyric {
         #[bw(try_calc = u32::try_from(data.len()))]
         size: u32,
         #[br(count = size)]
         data: Vec<LyricLine>,
     },
-    #[brw(magic(14u16))]
+    #[brw(magic(11u16))]
+    SetLyricFromTTML { data: NullString },
+    // 可从接收方发送给发送方的指令，用于控制播放内容进度
+    #[brw(magic(12u16))]
     Pause,
-    #[brw(magic(15u16))]
+    #[brw(magic(13u16))]
     Resume,
-    #[brw(magic(16u16))]
+    #[brw(magic(14u16))]
     ForwardSong,
-    #[brw(magic(17u16))]
+    #[brw(magic(15u16))]
     BackwardSong,
-    #[brw(magic(18u16))]
+    #[brw(magic(16u16))]
     SetVolume { volume: f64 },
-    #[brw(magic(19u16))]
-    SetLyricLineTTML { data: NullString },
+    #[brw(magic(17u16))]
+    SeekPlayProgress { progress: u64 },
 }
 
 pub fn parse_body(body: &[u8]) -> anyhow::Result<Body> {
@@ -155,6 +158,22 @@ pub fn to_body(body: &Body) -> anyhow::Result<Vec<u8>> {
     let mut cursor = Cursor::new(Vec::with_capacity(4096));
     body.write(&mut cursor)?;
     Ok(cursor.into_inner())
+}
+
+#[test]
+fn body_test() {
+    let body = Body::SetMusicInfo {
+        music_id: "1".into(),
+        music_name: "2".into(),
+        album_id: "3".into(),
+        album_name: "4".into(),
+        artists: vec![Artist {
+            id: "5".into(),
+            name: "6".into(),
+        }],
+        duration: 7,
+    };
+    assert_eq!(parse_body(&to_body(&body).unwrap()).unwrap(), body);
 }
 
 #[cfg(target_arch = "wasm32")]

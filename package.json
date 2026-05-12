@@ -6,24 +6,17 @@
 	"description": "一个歌词播放器协议库，用于不同播放软件与实现本协议的歌词播放器同步播放进度和播放信息",
 	"version": "0.3.0",
 	"license": "GPL-3.0",
-	"nx": {
-		"tags": [
-			"library"
-		],
-		"targets": {
-			"nx-release-publish": {
-				"executor": "@nx/js:release-publish",
-				"dependsOn": []
-			}
-		}
-	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/amll-dev/applemusic-like-lyrics"
 	},
 	"scripts": {
 		"build": "wasm-pack build --release",
-		"build:dev": "wasm-pack build --dev"
+		"build:dev": "wasm-pack build --dev",
+		"fmt": "cargo fmt && biome format . --write",
+		"cs": "changeset",
+		"version": "changeset version",
+		"release": "pnpm run build && changeset publish"
 	},
 	"files": [
 		"pkg/*.wasm",
@@ -35,5 +28,15 @@
 	"sideEffects": [
 		"./pkg/ws_protocol.js",
 		"./pkg/snippets/*"
-	]
+	],
+	"publishConfig": {
+		"provenance": true,
+		"access": "public"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.15",
+		"@changesets/changelog-github": "^0.7.0",
+		"@changesets/cli": "^2.31.0"
+	},
+	"packageManager": "pnpm@11.1.1"
 }

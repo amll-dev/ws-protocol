@@ -111,9 +111,7 @@ pub enum LyricContent {
     Ttml { data: String },
 }
 
-/// 通过二进制通道传输的负载，可用于降低通过互联网传输数据的延迟。
-///
-/// 不建议在本地环境中使用它们
+/// 通过二进制通道传输的负载，可用于降低序列化和反序列化开销。
 #[binrw]
 #[brw(little)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

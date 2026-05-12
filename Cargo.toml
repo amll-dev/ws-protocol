@@ -27,7 +27,6 @@ console_error_panic_hook = { version = "0.1", optional = true }
 js-sys = "0.3"
 serde-wasm-bindgen = "0.6"
 wasm-bindgen = "0.2"
-wee_alloc = { version = "0.4", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"
@@ -35,6 +34,3 @@ wasm-bindgen-test = "0.3"
 [features]
 default = ["console_error_panic_hook"]
 tracing = ["dep:tracing"]
-
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = true
